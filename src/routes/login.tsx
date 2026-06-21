@@ -53,6 +53,17 @@ export default function Login() {
     <main className="relative min-h-screen flex items-center justify-center px-4">
       <AmbientBackground />
 
+      {/* Top inline nav for login: back to landing */}
+      <div className="absolute top-6 left-6 z-40">
+        <button
+          onClick={() => navigate('/', { replace: true })}
+          className="inline-flex items-center gap-2 rounded-md px-3 py-1 text-sm text-white/70 hover:text-white bg-black/30 backdrop-blur"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          Back to home
+        </button>
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
