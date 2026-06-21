@@ -59,7 +59,8 @@ export function EquityChart({ data, height = 280 }: { data: number[]; height?: n
   const span = Math.max(1, max - min);
   const path = data.map((v, i) => `${i === 0 ? "M" : "L"} ${(i / (data.length - 1)) * 100} ${100 - ((v - min) / span) * 88 - 6}`).join(" ");
   return (
-    <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ height, width: "100%" }}>
+    <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" style={{ height: '100%', width: '100%', display: 'block' }}>
       <defs>
         <linearGradient id="eqFill" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor="oklch(0.87 0.22 152)" stopOpacity="0.35" />
@@ -76,7 +77,8 @@ export function EquityChart({ data, height = 280 }: { data: number[]; height?: n
       <path d={`${path} L 100 100 L 0 100 Z`} fill="url(#eqFill)" />
       <motion.path d={path} fill="none" stroke="url(#eqStroke)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"
         initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true, margin: "-10%" }} transition={{ duration: 2, ease: [0.22, 1, 0.36, 1] }} />
-    </svg>
+      </svg>
+    </div>
   );
 }
 

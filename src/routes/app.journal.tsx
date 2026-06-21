@@ -16,6 +16,19 @@ export default function Journal() {
   const [setupId, setSetupId] = useState<string>("all");
   const [accountFilter, setAccountFilter] = useState<string>("all");
 
+  // When a setup is selected, if it has a defaultAccountId, select that account automatically
+  React.useEffect(() => {
+    if (setupId === 'all') return;
+    const sel = SETUPS.find(s => s.id === setupId);
+    if (sel?.defaultAccountId) {
+      setAccountFilter(sel.defaultAccountId);
+    }
+  }, [setupId, SETUPS]);
+
+  const selectedSetupName = setupId === 'all' ? 'All setups' : (SETUPS.find(s=>s.id===setupId)?.name ?? '—');
+  const selectedAccountObj = accountFilter === 'all' ? null : (accountFilter === 'personal' ? null : accounts.find(a=>a.id===accountFilter) ?? null);
+  const selectedAccountLabel = accountFilter === 'all' ? 'All accounts' : (accountFilter === 'personal' ? 'Personal' : (selectedAccountObj ? `${selectedAccountObj.firm} · ${selectedAccountObj.account}` : '—'));
+
   const trades = useMemo(() => {
     return TRADES.filter((t) => {
       if (filter === "wins" && t.pnl <= 0) return false;
@@ -121,6 +134,31 @@ export default function Journal() {
           </table>
         </div>
       </Card>
+
+      {/* Quick analytics for the selected setup/account */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Card>
+          <div className="text-sm text-white/55">Selected setup</div>
+          <div className="text-lg font-semibold">{selectedSetupName}</div>
+        </Card>
+        <Card>
+          <div className="text-sm text-white/55">Selected account</div>
+          <div className="text-lg font-semibold">{selectedAccountLabel}</div>
+        </Card>
+        <Card>
+          <div className="text-sm text-white/55">Setup performance</div>
+          <div className="text-lg font-semibold">
+            {(() => {
+              // compute simple metrics for the currently filtered trades
+              const sTrades = trades.filter(t => setupId==='all' ? true : t.setup === setupId);
+              const wins = sTrades.filter(t=>t.pnl>0).length;
+              const pnl = sTrades.reduce((a,t)=>a+t.pnl,0);
+              const wr = sTrades.length ? Math.round((wins/sTrades.length)*100) : 0;
+              return `${wr}% WR · ${sTrades.length} trades · ${pnl>=0?'+':''}$${pnl.toLocaleString()}`;
+            })()}
+          </div>
+        </Card>
+      </div>
       {showNew && (
         <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
           <div className="absolute inset-0 bg-black/60" onClick={()=>setShowNew(false)} />

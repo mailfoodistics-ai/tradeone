@@ -255,7 +255,7 @@ export default function Dashboard() {
               </span>
             </div>
           </div>
-          <div className="h-64 md:h-80">
+          <div className="h-64 md:h-80 overflow-hidden">
             <EquityChart data={equity.length ? equity : [0, 1]} height={320} />
           </div>
         </Card>

@@ -28,6 +28,7 @@ export type Setup = {
   profit?: number;
   expectancy?: number;
   avgRR?: number;
+  defaultAccountId?: string | null;
 };
 export type PropAccount = {
   id: string;
@@ -154,6 +155,7 @@ export function useSetups() {
         profit: s.profit ?? 0,
         expectancy: s.expectancy ?? 0,
         avgRR: s.avg_rr ?? s.avgRR ?? 0,
+        defaultAccountId: s.default_account_id ?? s.defaultAccountId ?? null,
         createdAt: s.created_at,
       } as Setup));
       setData(mapped);
@@ -257,6 +259,7 @@ export async function getSetupById(id: string) {
     profit: data.profit ?? 0,
     expectancy: data.expectancy ?? 0,
     avgRR: data.avg_rr ?? data.avgRR ?? 0,
+    defaultAccountId: data.default_account_id ?? data.defaultAccountId ?? null,
     createdAt: data.created_at,
   } as Setup;
 }

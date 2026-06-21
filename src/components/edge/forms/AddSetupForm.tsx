@@ -1,15 +1,17 @@
 import { useState, type FormEvent } from "react";
 import { Field } from "../Modal";
-import { addSetup } from "@/lib/store/journalStore";
+import { addSetup, useAccounts } from "@/lib/store/journalStore";
 
 export function AddSetupForm({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const accounts = useAccounts();
+  const [defaultAccount, setDefaultAccount] = useState<string | "">("");
 
   function submit(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    addSetup({ name: name.trim(), description: description.trim() });
+    addSetup({ name: name.trim(), description: description.trim(), defaultAccountId: defaultAccount || undefined } as any);
     onDone();
   }
 
@@ -25,6 +27,14 @@ export function AddSetupForm({ onDone }: { onDone: () => void }) {
           placeholder="Describe the exact conditions, timeframes, and confluences that define this setup…"
           className="w-full rounded-xl bg-white/[0.03] border border-white/10 px-3 py-2.5 text-[13px] placeholder:text-white/30 focus:outline-none focus:border-primary/40 transition resize-none"
         />
+      </label>
+
+      <label className="block">
+        <div className="text-[11px] uppercase tracking-[0.14em] text-white/45 mb-1.5">Default account (optional)</div>
+        <select value={defaultAccount} onChange={(e)=>setDefaultAccount(e.target.value)} className="w-full rounded-xl bg-white/[0.03] border border-white/10 px-3 py-2.5 text-[13px]">
+          <option value="">None</option>
+          {accounts.map(a=> <option key={a.id} value={a.id}>{a.firm} · {a.account}</option>)}
+        </select>
       </label>
 
       <div className="rounded-xl bg-primary/5 border border-primary/20 p-3 text-[12px] text-white/70">
