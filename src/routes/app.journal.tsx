@@ -16,14 +16,32 @@ export default function Journal() {
   const [setupId, setSetupId] = useState<string>("all");
   const [accountFilter, setAccountFilter] = useState<string>("all");
 
-  // When a setup is selected, if it has a defaultAccountId, select that account automatically
+  // Only show setups and accounts that have at least one trade associated.
+  const setupsWithTrades = React.useMemo(() => SETUPS.filter(s => TRADES.some(t => t.setup === s.id)), [SETUPS, TRADES]);
+  const accountsWithTrades = React.useMemo(() => accounts.filter(a => TRADES.some(t => t.accountId === a.id)), [accounts, TRADES]);
+  const hasPersonalTrades = React.useMemo(() => TRADES.some(t => !t.accountId), [TRADES]);
+
+  // When a setup is selected, if it has a defaultAccountId and that account has trades, select that account automatically
   React.useEffect(() => {
     if (setupId === 'all') return;
     const sel = SETUPS.find(s => s.id === setupId);
-    if (sel?.defaultAccountId) {
+    if (sel?.defaultAccountId && accountsWithTrades.some(a => a.id === sel.defaultAccountId)) {
       setAccountFilter(sel.defaultAccountId);
     }
-  }, [setupId, SETUPS]);
+  }, [setupId, SETUPS, accountsWithTrades]);
+
+  // Clamp selections if they become unavailable (e.g., after trades change)
+  React.useEffect(() => {
+    if (setupId !== 'all' && !setupsWithTrades.some(s => s.id === setupId)) {
+      setSetupId('all');
+    }
+    if (accountFilter !== 'all' && accountFilter !== 'personal' && !accountsWithTrades.some(a => a.id === accountFilter)) {
+      setAccountFilter('all');
+    }
+    if (accountFilter === 'personal' && !hasPersonalTrades) {
+      setAccountFilter('all');
+    }
+  }, [setupsWithTrades, accountsWithTrades, hasPersonalTrades]);
 
   const selectedSetupName = setupId === 'all' ? 'All setups' : (SETUPS.find(s=>s.id===setupId)?.name ?? '—');
   const selectedAccountObj = accountFilter === 'all' ? null : (accountFilter === 'personal' ? null : accounts.find(a=>a.id===accountFilter) ?? null);
@@ -80,12 +98,12 @@ export default function Journal() {
         </div>
         <select value={setupId} onChange={(e)=>setSetupId(e.target.value)} className="rounded-lg bg-white/[0.03] border border-white/10 px-2.5 py-1.5 text-[12.5px] focus:outline-none focus:border-primary/40">
           <option value="all">All setups</option>
-          {SETUPS.map((s)=><option key={s.id} value={s.id}>{s.name}</option>)}
+          {setupsWithTrades.map((s)=><option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         <select value={accountFilter} onChange={(e)=>setAccountFilter(e.target.value)} className="rounded-lg bg-white/[0.03] border border-white/10 px-2.5 py-1.5 text-[12.5px] focus:outline-none focus:border-primary/40">
           <option value="all">All accounts</option>
-          <option value="personal">Personal only</option>
-          {accounts.map((a)=><option key={a.id} value={a.id}>{a.firm} · {a.account}</option>)}
+          {hasPersonalTrades && <option value="personal">Personal only</option>}
+          {accountsWithTrades.map((a)=><option key={a.id} value={a.id}>{a.firm} · {a.account}</option>)}
         </select>
         <div className="ml-auto flex items-center gap-4 text-[12px] text-white/55">
           <span>{totals.count} trades</span>
