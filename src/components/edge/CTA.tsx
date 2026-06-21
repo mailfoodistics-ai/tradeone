@@ -36,7 +36,7 @@ export function CTA() {
             <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-primary/15 ring-1 ring-primary/30">
               <svg viewBox="0 0 24 24" className="h-3 w-3 text-primary" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l5-5 4 4 8-9"/><path d="M14 7h6v6"/></svg>
             </span>
-            <span>TradeOne · © {new Date().getFullYear()}</span>
+            <span>tradeOne · © {new Date().getFullYear()}</span>
           </div>
           <div className="flex items-center gap-6">
             <a className="hover:text-white/80 transition" href="#">Privacy</a>

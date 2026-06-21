@@ -80,7 +80,7 @@ export function Hero() {
           className="mx-auto mt-6 max-w-xl text-[15px] leading-relaxed text-white/60"
         >
           Track every trade, analyze every setup, and uncover what actually makes money.
-          TradeOne is the research workspace for serious traders.
+          tradeOne is the research workspace for serious traders.
         </motion.p>
 
         <motion.div

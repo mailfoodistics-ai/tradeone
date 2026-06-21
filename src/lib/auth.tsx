@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { supabase } from "./supabase";
 
 type User = any;
@@ -55,8 +56,8 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   const { loading, user } = useAuth();
   if (loading) return <div className="grid place-items-center min-h-[200px]">Loading…</div>;
   if (!user) {
-    if (typeof window !== 'undefined') window.location.href = '/login';
-    return null;
+    // Use react-router redirect so navigation history is handled correctly.
+    return <Navigate to="/login" replace />;
   }
   return <>{children}</>;
 }

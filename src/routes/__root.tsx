@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const queryClient = new QueryClient();
 
@@ -30,7 +29,7 @@ export function NotFoundComponent() {
 export function ErrorComponent({ error }: { error: Error }) {
   console.error(error);
   useEffect(() => {
-    reportLovableError(error, { boundary: "root_error_component" });
+    // Error boundary side-effect placeholder. Telemetry integration removed.
   }, [error]);
 
   return (

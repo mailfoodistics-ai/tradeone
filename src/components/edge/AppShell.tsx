@@ -4,6 +4,7 @@ import { AmbientBackground } from "@/components/edge/AmbientBackground";
 import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth";
 import { useSetups } from "@/lib/store/journalStore";
+import { TradeOneLogo } from "@/components/TradeOneLogo";
 
 type NavItem = { to: string; label: string; icon: ReactNode };
 
@@ -41,12 +42,10 @@ export default function AppShell() {
           <Link to="/" className="flex items-center gap-2.5 group">
             <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/40">
               <span className="absolute inset-0 rounded-lg blur-md bg-primary/30" />
-              <svg viewBox="0 0 24 24" className="relative h-4 w-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 17l5-5 4 4 8-9" /><path d="M14 7h6v6" />
-              </svg>
+              <TradeOneLogo className="relative h-4 w-4 text-primary" />
             </span>
             <span className="text-[14px] font-semibold tracking-tight">
-              TradeOne
+              tradeOne
             </span>
           </Link>
         </div>

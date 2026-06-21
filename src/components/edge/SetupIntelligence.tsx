@@ -30,7 +30,7 @@ export function SetupIntelligence() {
               Find the combinations<br/><span className="text-white/55">that actually print.</span>
             </h2>
             <p className="mt-5 text-[14px] leading-relaxed text-white/60 max-w-md">
-              TradeOne connects every tag — setups, sessions, symbols, emotions — into a live
+              tradeOne connects every tag — setups, sessions, symbols, emotions — into a live
               network. Winning combinations glow. Losing ones fade. Your edge becomes obvious.
             </p>
             <div className="mt-7 grid grid-cols-2 gap-3 max-w-sm">

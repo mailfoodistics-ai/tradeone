@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
+import { TradeOneLogo } from "@/components/TradeOneLogo";
 
 export function Nav() {
   return (
@@ -10,18 +11,15 @@ export function Nav() {
       className="fixed top-4 left-1/2 z-50 -translate-x-1/2 w-[min(1100px,calc(100%-2rem))]"
     >
       <div className="glass-strong flex items-center justify-between rounded-2xl px-4 py-2.5">
-        <a href="#" className="flex items-center gap-2.5 group">
+        <Link to="/" className="flex items-center gap-2.5 group">
           <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/40">
             <span className="absolute inset-0 rounded-lg blur-md bg-primary/30 group-hover:bg-primary/50 transition" />
-            <svg viewBox="0 0 24 24" className="relative h-4 w-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 17l5-5 4 4 8-9" />
-              <path d="M14 7h6v6" />
-            </svg>
+            <TradeOneLogo className="relative h-4 w-4 text-primary" />
           </span>
           <span className="text-[15px] font-semibold tracking-tight">
-            Edge<span className="text-primary">Journal</span>
+            trade<span className="text-primary">One</span>
           </span>
-        </a>
+        </Link>
 
         <nav className="hidden md:flex items-center gap-7 text-[13px] text-white/65">
           <a className="hover:text-white transition" href="#features">Features</a>

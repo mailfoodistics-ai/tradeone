@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { AmbientBackground } from "@/components/edge/AmbientBackground";
+import { TradeOneLogo } from "@/components/TradeOneLogo";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -62,9 +63,9 @@ export default function Login() {
           <Link to="/" className="inline-flex items-center gap-2 group mb-6">
             <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/40">
               <span className="absolute inset-0 rounded-lg blur-md bg-primary/30 group-hover:bg-primary/50 transition"/>
-              <svg viewBox="0 0 24 24" className="relative h-4 w-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l5-5 4 4 8-9"/><path d="M14 7h6v6"/></svg>
+              <TradeOneLogo className="relative h-4 w-4 text-primary" />
             </span>
-            <span className="text-[14px] font-semibold tracking-tight">TradeOne</span>
+            <span className="text-[14px] font-semibold tracking-tight">tradeOne</span>
           </Link>
 
           <h1 className="text-2xl font-semibold tracking-[-0.02em]">Welcome back.</h1>
@@ -79,7 +80,7 @@ export default function Login() {
               <svg viewBox="0 0 24 24" className="relative h-4 w-4" fill="currentColor"><path d="M21.35 11.1H12v3.83h5.36c-.23 1.24-1.6 3.65-5.36 3.65-3.22 0-5.85-2.66-5.85-5.93s2.63-5.93 5.85-5.93c1.83 0 3.07.78 3.77 1.45l2.57-2.48C16.86 4.33 14.65 3.4 12 3.4 6.92 3.4 2.82 7.5 2.82 12.6S6.92 21.8 12 21.8c6.93 0 9.5-4.85 9.5-7.36 0-.5-.06-.89-.15-1.34z"/></svg>
               <span className="relative">Continue with Google</span>
             </button>
-            <p className="mt-3 text-center text-[11px] text-white/40">Sign in with your Google account to access TradeOne.</p>
+            <p className="mt-3 text-center text-[11px] text-white/40">Sign in with your Google account to access tradeOne.</p>
             {errorMsg && <div className="mt-3 text-center text-[12px] text-destructive">{errorMsg}</div>}
           </div>
         </div>

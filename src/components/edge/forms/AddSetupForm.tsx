@@ -28,7 +28,7 @@ export function AddSetupForm({ onDone }: { onDone: () => void }) {
       </label>
 
       <div className="rounded-xl bg-primary/5 border border-primary/20 p-3 text-[12px] text-white/70">
-        <span className="text-primary">TradeOne will track</span> every trade tagged with this setup — win rate, expectancy, RR and equity curve are computed automatically.
+  <span className="text-primary">tradeOne will track</span> every trade tagged with this setup — win rate, expectancy, RR and equity curve are computed automatically.
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-1">
