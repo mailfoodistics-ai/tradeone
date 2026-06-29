@@ -256,10 +256,10 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
                       <div className="text-xs text-white/50 mb-2">Account (choose one of your saved accounts)</div>
                       <div className="flex gap-2 items-center">
                         <div className="relative w-full">
-                          <select value={accountId ?? ""} onChange={(e) => setAccountId(e.target.value || null)} className="w-full rounded-md bg-transparent text-white border border-white/6 px-3 py-2 pr-10 text-sm appearance-none">
-                            <option value="">Select an account</option>
+                          <select value={accountId ?? ""} onChange={(e) => setAccountId(e.target.value || null)} className="w-full rounded-md bg-black/70 border border-white/10 px-3 py-2 pr-10 text-sm appearance-none text-primary">
+                            <option value="" className="bg-black text-primary">Select an account</option>
                             {accounts.map((a) => (
-                              <option key={a.id} value={a.id}>{a.firm} · {a.account}</option>
+                              <option key={a.id} value={a.id} className="bg-black text-primary">{a.firm} · {a.account}</option>
                             ))}
                           </select>
                           {/* removed extra caret SVG to avoid duplicate arrows */}
@@ -272,11 +272,19 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
                   {step === 2 && (
                     <div>
                       <div className="text-xs text-white/50 mb-2">Setups (tag relevant setups)</div>
-                      <div className="flex flex-wrap gap-2">
-                        {setups.map((s) => (
-                          <button key={s.id} onClick={() => toggle(tradeSetups, setTradeSetups, s.id)} className={`px-3 py-1.5 rounded ${tradeSetups.includes(s.id) ? "bg-primary text-black" : "bg-white/5"}`}>{(s as any).title ?? (s as any).name ?? s.id}</button>
-                        ))}
-                      </div>
+                      {setups.length === 0 ? (
+                        <div className="rounded-xl border border-primary/20 bg-primary/10 p-4 text-sm text-white/80">
+                          <div className="font-medium text-primary">No setups yet</div>
+                          <div className="mt-1 text-white/60">Create a setup first so you can tag trades to it.</div>
+                          <button onClick={() => navigate("/app/setups")} className="mt-3 inline-flex items-center rounded-lg bg-primary px-3 py-2 text-[13px] font-medium text-black">Add setup</button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {setups.map((s) => (
+                            <button key={s.id} onClick={() => toggle(tradeSetups, setTradeSetups, s.id)} className={`px-3 py-1.5 rounded ${tradeSetups.includes(s.id) ? "bg-primary text-black" : "bg-white/5"}`}>{(s as any).title ?? (s as any).name ?? s.id}</button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -326,14 +334,18 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
                   {step === 5 && (
                     <div>
                       <div className="text-xs text-white/50 mb-2">Screenshots</div>
+                      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary hover:bg-primary/15">
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4" /><path d="M6 10l6-6 6 6" /><path d="M4 20h16" /></svg>
+                        <span>Add image</span>
                         <input type="file" accept="image/*" multiple onChange={(e) => {
-                        const files = e.target.files;
-                        if (!files) return;
-                        const arr = Array.from(files).map((f) => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, file: f, preview: URL.createObjectURL(f) }));
-                        setScreenshots((prev) => [...prev, ...arr]);
-                        setUploadProgress((prev) => { const c = { ...prev }; arr.forEach((a) => (c[a.id] = 0)); return c; });
-                        (e.target as HTMLInputElement).value = "";
-                      }} className="block w-full text-sm text-white/60" />
+                          const files = e.target.files;
+                          if (!files) return;
+                          const arr = Array.from(files).map((f) => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, file: f, preview: URL.createObjectURL(f) }));
+                          setScreenshots((prev) => [...prev, ...arr]);
+                          setUploadProgress((prev) => { const c = { ...prev }; arr.forEach((a) => (c[a.id] = 0)); return c; });
+                          (e.target as HTMLInputElement).value = "";
+                        }} className="sr-only" />
+                      </label>
 
                       <div className="mt-2 text-[12px] text-white/55">
                         Image uploads need a public Storage bucket named <span className="font-medium text-white/80">attachments</span>. In Supabase, create it, enable public access, and allow uploads for your anon/auth role.
