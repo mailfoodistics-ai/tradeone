@@ -64,6 +64,18 @@ export default function Journal() {
     return { count: trades.length, wins, pnl, wr: trades.length ? Math.round(wins/trades.length*100) : 0 };
   }, [trades]);
 
+  const sessionSummary = useMemo(() => {
+    const bySession = new Map<string, { count: number; pnl: number; wins: number }>();
+    trades.forEach((t) => {
+      const prev = bySession.get(t.session ?? "Unspecified") ?? { count: 0, pnl: 0, wins: 0 };
+      prev.count += 1;
+      prev.pnl += t.pnl;
+      if (t.pnl > 0) prev.wins += 1;
+      bySession.set(t.session ?? "Unspecified", prev);
+    });
+    return [...bySession.entries()].sort((a, b) => b[1].pnl - a[1].pnl)[0];
+  }, [trades]);
+
   const [showNew, setShowNew] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareSetup, setShareSetup] = useState<string | null>(null);
@@ -164,16 +176,9 @@ export default function Journal() {
           <div className="text-lg font-semibold">{selectedAccountLabel}</div>
         </Card>
         <Card>
-          <div className="text-sm text-white/55">Setup performance</div>
+          <div className="text-sm text-white/55">Session performance</div>
           <div className="text-lg font-semibold">
-            {(() => {
-              // compute simple metrics for the currently filtered trades
-              const sTrades = trades.filter(t => setupId==='all' ? true : t.setup === setupId);
-              const wins = sTrades.filter(t=>t.pnl>0).length;
-              const pnl = sTrades.reduce((a,t)=>a+t.pnl,0);
-              const wr = sTrades.length ? Math.round((wins/sTrades.length)*100) : 0;
-              return `${wr}% WR · ${sTrades.length} trades · ${pnl>=0?'+':''}$${pnl.toLocaleString()}`;
-            })()}
+            {sessionSummary ? `${sessionSummary[0]} · ${sessionSummary[1].count} trades · ${sessionSummary[1].pnl >= 0 ? "+" : ""}$${sessionSummary[1].pnl.toLocaleString()}` : "No session data"}
           </div>
         </Card>
       </div>

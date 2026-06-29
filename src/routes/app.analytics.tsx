@@ -9,11 +9,17 @@ export default function Analytics() {
   const ALL_TRADES = useTrades();
   const SETUPS = useSetups();
   const [setupFilter, setSetupFilter] = useState<string>("all");
+  const [sessionFilter, setSessionFilter] = useState<string>("all");
+
+  const sessionOptions = useMemo(() => Array.from(new Set(ALL_TRADES.map((t) => t.session).filter(Boolean))).sort(), [ALL_TRADES]);
 
   const TRADES = useMemo(() => {
-    if (setupFilter === "all") return ALL_TRADES;
-    return ALL_TRADES.filter((t) => t.setup === setupFilter);
-  }, [ALL_TRADES, setupFilter]);
+    return ALL_TRADES.filter((t) => {
+      if (setupFilter !== "all" && t.setup !== setupFilter) return false;
+      if (sessionFilter !== "all" && t.session !== sessionFilter) return false;
+      return true;
+    });
+  }, [ALL_TRADES, setupFilter, sessionFilter]);
 
   const analytics = useMemo(() => {
     const totals = { wins: 0, losses: 0, grossWin: 0, grossLoss: 0, pnl: 0 };
@@ -131,8 +137,8 @@ export default function Analytics() {
         subtitle="The patterns that print, the ones that don't, and the days that decide your month."
       />
 
-      {/* Setup filter */}
-      <div className="mt-3 mb-2 flex items-center gap-3">
+      {/* Setup and session filters */}
+      <div className="mt-3 mb-2 flex flex-wrap items-center gap-3">
         <div className="text-sm text-white/60">Filter by setup</div>
         <div className="relative">
           <select value={setupFilter} onChange={(e) => setSetupFilter(e.target.value)} className="rounded-md bg-transparent text-white border border-white/6 px-3 py-2 pr-8 text-sm appearance-none">
@@ -141,9 +147,19 @@ export default function Analytics() {
               <option key={s.id} value={s.id}>{s.name ?? s.id}</option>
             ))}
           </select>
-          {/* caret removed to avoid double arrow */}
         </div>
-        {setupFilter !== "all" && <button onClick={() => setSetupFilter("all")} className="px-3 py-1 rounded bg-white/6 text-sm">Clear</button>}
+        {setupFilter !== "all" && <button onClick={() => setSetupFilter("all")} className="px-3 py-1 rounded bg-white/6 text-sm">Clear setup</button>}
+
+        <div className="text-sm text-white/60">Filter by session</div>
+        <div className="relative">
+          <select value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)} className="rounded-md bg-transparent text-white border border-white/6 px-3 py-2 pr-8 text-sm appearance-none">
+            <option value="all">All sessions</option>
+            {sessionOptions.map((session) => (
+              <option key={session} value={session}>{session}</option>
+            ))}
+          </select>
+        </div>
+        {sessionFilter !== "all" && <button onClick={() => setSessionFilter("all")} className="px-3 py-1 rounded bg-white/6 text-sm">Clear session</button>}
       </div>
 
       {/* Top KPI strip */}

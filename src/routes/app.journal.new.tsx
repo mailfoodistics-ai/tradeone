@@ -39,6 +39,8 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
   const uploadTimers = useRef<Record<string, number | NodeJS.Timeout>>({});
   const [uploading, setUploading] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
+  const [session, setSession] = useState("NY");
+  const [customSession, setCustomSession] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,6 +52,7 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
 
   const account = accounts.find((a) => a.id === accountId);
   const personalAccounts = accounts.filter((a) => (a.firm ?? "").toLowerCase().includes("personal") || (a.firm ?? "").toLowerCase().includes("fund"));
+  const sessionValue = session === "Custom" ? (customSession.trim() || "Custom") : session;
 
   const toggle = (arr: string[], set: (v: string[]) => void, v: string) =>
     set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
@@ -126,7 +129,7 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
         setup: setupId,
         rr: pnlN < 0 ? -rr : rr,
         pnl: pnlN,
-        session: "NY",
+        session: sessionValue,
         emotion: (emotionAfter || emotionBefore || "Neutral") as Trade["emotion"],
         mistakes: tradeMistakes,
         exitType,
@@ -180,7 +183,7 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
                     <div className="text-sm text-white/50">Quick entry</div>
                     <div className="h-5 w-px bg-white/6" />
                     <div className="text-sm text-white/50">{new Date().toLocaleDateString()}</div>
-                    <div className="px-2 py-0.5 rounded bg-white/5 text-xs text-white/60">Session: NY</div>
+                    <div className="px-2 py-0.5 rounded bg-white/5 text-xs text-white/60">Session: {sessionValue}</div>
                   </div>
                 </div>
               </div>
@@ -227,6 +230,21 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
                       </div>
                       <div className="min-w-0">
                         <FieldInput label="Realized P&L ($)" placeholder="320" value={pnl} onChange={setPnl} />
+                      </div>
+
+                      <div className="md:col-span-4 min-w-0">
+                        <div className="text-xs text-white/50 mb-2">Session</div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {(["NY", "London", "Asia", "Custom"] as const).map((s) => (
+                            <button key={s} onClick={() => {
+                              setSession(s);
+                              if (s !== "Custom") setCustomSession("");
+                            }} className={`px-3 py-2 rounded-lg text-sm ${session === s ? "bg-primary text-black" : "bg-white/5"}`}>{s}</button>
+                          ))}
+                        </div>
+                        {session === "Custom" && (
+                          <input value={customSession} onChange={(e) => setCustomSession(e.target.value)} placeholder="Enter a custom session" className="mt-2 w-full rounded-md bg-white/5 border border-white/6 px-3 py-2 text-sm" />
+                        )}
                       </div>
 
                       <div className="md:col-span-4 min-w-0">
@@ -407,6 +425,7 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
                     <div className="h-px bg-white/6 my-2" />
                     <Row k="Symbol" v={symbol} />
                     <Row k="Direction" v={direction} />
+                    <Row k="Session" v={sessionValue} />
                     <Row k="RR" v={computedRR ? `${computedRR}R` : <span className="text-white/40">—</span>} />
                     <Row k="P&L" v={pnl ? <span className={Number(pnl) >= 0 ? "text-primary" : "text-destructive"}>{Number(pnl) >= 0 ? "+" : ""}${Number(pnl).toLocaleString()}</span> : <span className="text-white/40">—</span>} />
                     <Row k="Setups" v={tradeSetups.length ? tradeSetups.length + " tagged" : <span className="text-white/40">—</span>} />
