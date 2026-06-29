@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { Field, Select } from "../Modal";
 import { addAccount } from "@/lib/store/journalStore";
+import { getSupabaseErrorMessage } from "@/lib/supabase";
 import type { PropAccount } from "@/lib/store/journalStore";
 
 export function AddAccountForm({ onDone }: { onDone: () => void }) {
@@ -15,27 +17,52 @@ export function AddAccountForm({ onDone }: { onDone: () => void }) {
   const [maxDailyDD, setMaxDailyDD] = useState("0");
   const [minDays, setMinDays] = useState("7");
   const [status, setStatus] = useState<PropAccount["status"]>("Evaluation");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // derive live mode from accountType
 
-  function submit(e: FormEvent) {
+  const live = accountType === 'Live';
+  const isFunded = !live && status === 'Funded';
+  const shouldShowTarget = !live && !isFunded;
+
+  async function submit(e: FormEvent) {
     e.preventDefault();
+    setFormError(null);
     const startBalance = Number(start) || 0;
-    const live = accountType === 'Live';
-    addAccount({
-      firm: firm || 'Custom',
-      product: product as PropAccount['product'],
-      account: account || `${(firm||'CUSTOM').toUpperCase()}-${Math.round(startBalance / 1000)}K`,
-      balance: startBalance,
-      startBalance,
-      buyAmount: Number(buyAmount) || 0,
-      // target and drawdown are absolute amounts (dollars)
-      target: live ? 0 : (Number(target) || 0),
-      maxDrawdown: live ? 0 : (Number(maxDD) || 0),
-      maxDailyDrawdown: live ? 0 : (Number(maxDailyDD) || 0),
-      minDays: live ? 0 : (Number(minDays) || 5),
-      status: live ? 'Active' : status,
-    });
-    onDone();
+    const finalTarget = live || isFunded ? 0 : (Number(target) || 0);
+
+    if (!firm.trim()) {
+      const message = "Please enter a firm name before adding the account.";
+      setFormError(message);
+      toast.error(message);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await addAccount({
+        firm: firm || 'Custom',
+        product: product as PropAccount['product'],
+        account: account || `${(firm||'CUSTOM').toUpperCase()}-${Math.round(startBalance / 1000)}K`,
+        balance: startBalance,
+        startBalance,
+        buyAmount: Number(buyAmount) || 0,
+        // target and drawdown are absolute amounts (dollars)
+        target: finalTarget,
+        maxDrawdown: live ? 0 : (Number(maxDD) || 0),
+        maxDailyDrawdown: live ? 0 : (Number(maxDailyDD) || 0),
+        minDays: live ? 0 : (Number(minDays) || 5),
+        status: live ? 'Active' : status,
+      });
+      toast.success("Account added successfully.");
+      onDone();
+    } catch (error) {
+      const message = getSupabaseErrorMessage(error, "Unable to add the account right now.");
+      setFormError(message);
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   let statusOptions: string[] = [];
@@ -77,11 +104,13 @@ export function AddAccountForm({ onDone }: { onDone: () => void }) {
       <div className="grid grid-cols-2 gap-3">
         <Field label="Start balance ($)" type="number" placeholder="50000" value={start} onChange={setStart} required />
         {accountType !== 'Live' && <Field label="Buy amount ($)" type="number" placeholder="0" value={buyAmount} onChange={setBuyAmount} />}
-  {accountType !== 'Live' && <Field label="Profit target (absolute $)" type="number" placeholder="3000" value={target} onChange={setTarget} required />}
-  {accountType !== 'Live' && <Field label="Max drawdown ($)" type="number" placeholder="2500" value={maxDD} onChange={setMaxDD} required />}
-  {accountType !== 'Live' && <Field label="Max daily drawdown ($)" type="number" placeholder="0" value={maxDailyDD} onChange={setMaxDailyDD} />}
-  {accountType !== 'Live' && <Field label="Min trading days" type="number" placeholder="7" value={minDays} onChange={setMinDays} />}
+        {shouldShowTarget && <Field label="Profit target (absolute $)" type="number" placeholder="3000" value={target} onChange={setTarget} required />}
+        {accountType !== 'Live' && <Field label="Max drawdown ($)" type="number" placeholder="2500" value={maxDD} onChange={setMaxDD} required />}
+        {accountType !== 'Live' && <Field label="Max daily drawdown ($)" type="number" placeholder="0" value={maxDailyDD} onChange={setMaxDailyDD} />}
+        {accountType !== 'Live' && <Field label="Min trading days" type="number" placeholder="7" value={minDays} onChange={setMinDays} />}
       </div>
+
+      {formError && <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">{formError}</div>}
 
       <div className="rounded-xl bg-primary/5 border border-primary/20 p-3 text-[12px] text-white/70">
         <span className="text-primary">Tip:</span> when you journal a trade you can attach it to this account — balance, drawdown and trading days update automatically.
@@ -89,8 +118,8 @@ export function AddAccountForm({ onDone }: { onDone: () => void }) {
 
       <div className="flex items-center justify-end gap-2 pt-1">
         <button type="button" onClick={onDone} className="text-[13px] text-white/55 hover:text-white px-3 py-2">Cancel</button>
-        <button type="submit" className="rounded-xl bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground hover:shadow-[0_0_30px_-4px_oklch(0.87_0.22_152/0.7)] transition">
-          Add account
+        <button type="submit" disabled={isSubmitting} className="rounded-xl bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground hover:shadow-[0_0_30px_-4px_oklch(0.87_0.22_152/0.7)] transition disabled:cursor-not-allowed disabled:opacity-70">
+          {isSubmitting ? "Adding..." : "Add account"}
         </button>
       </div>
     </form>

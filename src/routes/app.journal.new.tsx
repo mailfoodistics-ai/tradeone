@@ -1,9 +1,10 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
 import { Card, PageHeader } from "@/components/edge/ui";
 import { addTrade, useAccounts, useSetups } from "@/lib/store/journalStore";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseErrorMessage, supabase } from "@/lib/supabase";
 import type { Trade } from "@/lib/store/journalStore";
 
 // Single clean NewTrade component implementing centered modal + blurred backdrop
@@ -38,6 +39,7 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
   const uploadTimers = useRef<Record<string, number | NodeJS.Timeout>>({});
   const [uploading, setUploading] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -77,8 +79,7 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
 
   async function save() {
     const setupId = setups[0]?.id ?? "manual";
-    // compute realized pnl: prefer manual amount when manual exit selected
-    let pnlN = Number(pnl) || 0; // realized PnL only
+    let pnlN = Number(pnl) || 0;
     if (exitType === "Manual") {
       const m = Number(manualAmount) || 0;
       pnlN = manualOutcome === "Loss" ? -Math.abs(m) : Math.abs(m);
@@ -86,7 +87,9 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
     const rr = computedRR ?? 1;
 
     setUploading(true);
+    setSaveError(null);
     const uploadedUrls: string[] = [];
+    const uploadErrors: string[] = [];
 
     for (const s of screenshots) {
       try {
@@ -102,44 +105,60 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
           if (urlData?.publicUrl) uploadedUrls.push(urlData.publicUrl);
           setUploadProgress((prev) => ({ ...prev, [s.id]: 100 }));
         } else {
-          console.error(upErr);
+          const message = getSupabaseErrorMessage(upErr, "Screenshot upload failed.");
+          uploadErrors.push(message);
           setUploadProgress((prev) => ({ ...prev, [s.id]: 0 }));
         }
         clearInterval(uploadTimers.current[s.id] as any);
       } catch (e) {
-        console.error(e);
+        const message = getSupabaseErrorMessage(e, "Screenshot upload failed.");
+        uploadErrors.push(message);
         clearInterval(uploadTimers.current[s.id] as any);
         setUploadProgress((prev) => ({ ...prev, [s.id]: 0 }));
       }
     }
 
-    await addTrade({
-      date: new Date().toISOString(),
-      symbol: symbol || "NQ",
-      direction,
-      setup: setupId,
-      rr: pnlN < 0 ? -rr : rr,
-      pnl: pnlN,
-      session: "NY",
-      emotion: (emotionAfter || emotionBefore || "Neutral") as Trade["emotion"],
-      mistakes: tradeMistakes,
-      exitType,
-      accountId: accountId ?? null,
-      notes: "",
-      attachments: uploadedUrls,
-    } as any);
+    try {
+      await addTrade({
+        date: new Date().toISOString(),
+        symbol: symbol || "NQ",
+        direction,
+        setup: setupId,
+        rr: pnlN < 0 ? -rr : rr,
+        pnl: pnlN,
+        session: "NY",
+        emotion: (emotionAfter || emotionBefore || "Neutral") as Trade["emotion"],
+        mistakes: tradeMistakes,
+        exitType,
+        accountId: accountId ?? null,
+        notes: "",
+        attachments: uploadedUrls,
+      } as any);
 
-    if (accountId) {
-      try {
-        const m = await import("@/lib/store/journalStore");
-        if (m && m.updateAccountAfterTrade) await m.updateAccountAfterTrade(accountId as string, pnlN);
-      } catch (e) {
-        console.error("updateAccountAfterTrade error", e);
+      if (accountId) {
+        try {
+          const m = await import("@/lib/store/journalStore");
+          if (m && m.updateAccountAfterTrade) await m.updateAccountAfterTrade(accountId as string, pnlN);
+        } catch (e) {
+          console.error("updateAccountAfterTrade error", e);
+          toast.error("The trade was saved, but the account update failed.");
+        }
       }
-    }
 
-    setUploading(false);
-    if (onClose) onClose(); else navigate("/app/journal");
+      if (uploadErrors.length) {
+        setSaveError(uploadErrors[0]);
+        toast.error(uploadErrors[0]);
+        return;
+      }
+
+      if (onClose) onClose(); else navigate("/app/journal");
+    } catch (error) {
+      const message = getSupabaseErrorMessage(error, "Unable to save the trade right now.");
+      setSaveError(message);
+      toast.error(message);
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -316,6 +335,10 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
                         (e.target as HTMLInputElement).value = "";
                       }} className="block w-full text-sm text-white/60" />
 
+                      <div className="mt-2 text-[12px] text-white/55">
+                        Image uploads need a public Storage bucket named <span className="font-medium text-white/80">attachments</span>. In Supabase, create it, enable public access, and allow uploads for your anon/auth role.
+                      </div>
+
                       <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {screenshots.map((s) => (
                           <div key={s.id} className="bg-white/5/10 rounded-md p-3 flex items-center gap-4">
@@ -337,6 +360,12 @@ export default function NewTrade({ onClose }: { onClose?: () => void } = {}) {
                     <div>
                       <div className="text-xs text-white/50 mb-2">Notes</div>
                       <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full rounded-md bg-white/5 border border-white/6 px-3 py-2 min-h-[120px]" />
+                    </div>
+                  )}
+
+                  {saveError && (
+                    <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                      {saveError}
                     </div>
                   )}
 

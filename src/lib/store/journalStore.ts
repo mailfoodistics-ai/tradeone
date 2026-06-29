@@ -1,5 +1,5 @@
 import { useSyncExternalStore, useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseErrorMessage, supabase } from "@/lib/supabase";
 
 // Types
 export type Trade = {
@@ -201,37 +201,68 @@ export function useAccounts() {
 
 // Mutations
 export async function addTrade(t: Omit<Trade, "id">) {
-  // convert camelCase keys to snake_case for DB
   const payload: any = {
-    ...t,
-    account_id: (t as any).accountId ?? undefined,
+    date: t.date,
+    symbol: t.symbol,
+    direction: t.direction,
+    setup: t.setup ?? null,
+    rr: t.rr ?? 0,
+    pnl: t.pnl ?? 0,
+    session: t.session,
+    emotion: t.emotion ?? null,
+    mistakes: t.mistakes ?? [],
+    account_id: (t as any).accountId ?? null,
+    notes: t.notes ?? "",
+    attachments: t.attachments ?? [],
   };
-  delete (payload as any).accountId;
   const { data, error } = await supabase.from("trades").insert([payload]);
-  if (error) throw error;
+  if (error) throw new Error(getSupabaseErrorMessage(error, "Unable to save the trade."));
   return data;
 }
 
 export async function addAccount(a: Omit<PropAccount, "id">) {
   const payload: any = {
-    ...a,
-    start_balance: (a as any).startBalance ?? undefined,
-    max_drawdown: (a as any).maxDrawdown ?? undefined,
-    max_daily_drawdown: (a as any).maxDailyDrawdown ?? undefined,
-    daily_drawdown: (a as any).dailyDrawdown ?? undefined,
-    current_drawdown: (a as any).currentDrawdown ?? undefined,
-    trading_days: (a as any).tradingDays ?? undefined,
-    min_days: (a as any).minDays ?? undefined,
-    buy_amount: (a as any).buyAmount ?? undefined,
+    firm: a.firm ?? "Custom",
+    account: a.account,
+    balance: a.balance ?? 0,
+    status: a.status,
   };
-  delete (payload as any).startBalance;
-  delete (payload as any).maxDrawdown;
-  delete (payload as any).currentDrawdown;
-  delete (payload as any).tradingDays;
-  delete (payload as any).minDays;
-  const { data, error } = await supabase.from("accounts").insert([payload]);
-  if (error) throw error;
-  return data;
+
+  const optionalColumns = [
+    ["product", a.product ?? "Other"],
+    ["start_balance", (a as any).startBalance ?? 0],
+    ["target", (a as any).target ?? 0],
+    ["buy_amount", (a as any).buyAmount ?? 0],
+    ["max_drawdown", (a as any).maxDrawdown ?? 0],
+    ["current_drawdown", (a as any).currentDrawdown ?? 0],
+    ["daily_drawdown", (a as any).dailyDrawdown ?? 0],
+    ["max_daily_drawdown", (a as any).maxDailyDrawdown ?? 0],
+    ["trading_days", (a as any).tradingDays ?? 0],
+    ["min_days", (a as any).minDays ?? 0],
+  ] as const;
+
+  for (const [key, value] of optionalColumns) {
+    if (value !== undefined && value !== null) payload[key] = value;
+  }
+
+  const insertWithFallback = async (row: Record<string, unknown>) => {
+    const { data, error } = await supabase.from("accounts").insert([row]);
+    if (!error) return data;
+
+    const detail = (error as any)?.message ?? "";
+    const missingColumnMatch = detail.match(/column\s+"?([a-z0-9_]+)"?\s+does not exist/i);
+    if (missingColumnMatch) {
+      const missingColumn = missingColumnMatch[1];
+      if (missingColumn in row) {
+        delete row[missingColumn];
+        return insertWithFallback(row);
+      }
+    }
+
+    throw new Error(getSupabaseErrorMessage(error, "Unable to add the account."));
+  };
+
+  return insertWithFallback(payload);
 }
 
 export async function addSetup(s: Omit<Setup, "id">) {
