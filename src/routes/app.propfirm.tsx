@@ -6,7 +6,7 @@ import { Card, CountUp, PageHeader, StatusPill } from "@/components/edge/ui";
 import { PnlCalendar } from "@/components/edge/PnlCalendar";
 import { Modal } from "@/components/edge/Modal";
 import { AddAccountForm } from "@/components/edge/forms/AddAccountForm";
-import { useAccounts, useTrades } from "@/lib/store/journalStore";
+import { deleteAccount, useAccounts, useTrades } from "@/lib/store/journalStore";
 
 export default function PropFirmRoute() {
   // Render the dynamic prop-firm page which reads live accounts via the store.
@@ -41,6 +41,7 @@ function PropFirmPage() {
   const accounts = useAccounts();
   const trades = useTrades();
   const [open, setOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<ReturnType<typeof useAccounts>[number] | null>(null);
 
   const total = accounts.reduce((a,p)=>a+p.balance,0);
   const fundedCount = accounts.filter(p=>p.status==="Funded").length;
@@ -58,7 +59,7 @@ function PropFirmPage() {
         title="Stay inside the rules. Hit the target."
         subtitle="Apex · Topstep · MyFundedFutures · custom accounts — all in one place."
         actions={
-          <button onClick={()=>setOpen(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground hover:shadow-[0_0_30px_-4px_oklch(0.87_0.22_152/0.7)] transition">
+          <button onClick={()=>{ setEditingAccount(null); setOpen(true); }} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground hover:shadow-[0_0_30px_-4px_oklch(0.87_0.22_152/0.7)] transition">
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
             Add account
           </button>
@@ -85,7 +86,11 @@ function PropFirmPage() {
                     <div className="mt-1 text-lg font-semibold tracking-tight">{p.account}</div>
                     <div className="text-[11px] text-white/45 mt-0.5">{tradeCount} journaled trade{tradeCount===1?"":"s"}</div>
                   </div>
-                  <StatusPill tone={p.status==="Funded"||p.status==="Active"?"pos":p.status==="Breached"?"neg":"warn"}>{p.status}</StatusPill>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => { setEditingAccount(p); setOpen(true); }} className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] text-white/70 hover:text-white">Edit</button>
+                    <button onClick={async () => { if (window.confirm(`Delete ${p.account}?`)) { await deleteAccount(p.id); } }} className="rounded-lg border border-destructive/30 bg-destructive/10 px-2 py-1 text-[11px] text-destructive hover:bg-destructive/20">Delete</button>
+                    <StatusPill tone={p.status==="Funded"||p.status==="Active"?"pos":p.status==="Breached"?"neg":"warn"}>{p.status}</StatusPill>
+                  </div>
                 </div>
 
                 <div className="relative mt-5 grid grid-cols-3 items-center gap-4">
@@ -132,7 +137,7 @@ function PropFirmPage() {
 
         {/* Add account card */}
         <motion.button
-          onClick={()=>setOpen(true)}
+          onClick={()=>{ setEditingAccount(null); setOpen(true); }}
           initial={{opacity:0, y:18}} animate={{opacity:1, y:0}} transition={{duration:0.6, delay:accounts.length*0.07}}
           className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] hover:bg-white/[0.04] hover:border-primary/40 transition px-5 py-10 text-center group"
         >
@@ -146,8 +151,8 @@ function PropFirmPage() {
 
       {/* Only account list and Add account remain on this page. Aggregated metrics moved to Dashboard. */}
 
-      <Modal open={open} onClose={()=>setOpen(false)} title="Add prop firm account" subtitle="Configure the rules and we'll track them in real time.">
-        <AddAccountForm onDone={()=>setOpen(false)} />
+      <Modal open={open} onClose={()=>{ setEditingAccount(null); setOpen(false); }} title={editingAccount ? "Edit prop firm account" : "Add prop firm account"} subtitle="Configure the rules and we'll track them in real time.">
+        <AddAccountForm accountToEdit={editingAccount} onDone={()=>{ setEditingAccount(null); setOpen(false); }} />
       </Modal>
     </>
   );

@@ -1,11 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Field, Select } from "../Modal";
-import { addAccount } from "@/lib/store/journalStore";
+import { addAccount, updateAccount } from "@/lib/store/journalStore";
 import { getSupabaseErrorMessage } from "@/lib/supabase";
 import type { PropAccount } from "@/lib/store/journalStore";
 
-export function AddAccountForm({ onDone }: { onDone: () => void }) {
+export function AddAccountForm({ onDone, accountToEdit }: { onDone: () => void; accountToEdit?: PropAccount | null }) {
   const [firm, setFirm] = useState("");
   const [product, setProduct] = useState<string>("Futures");
   const [accountType, setAccountType] = useState<'PropFirm'|'Live'>('PropFirm');
@@ -19,6 +19,22 @@ export function AddAccountForm({ onDone }: { onDone: () => void }) {
   const [status, setStatus] = useState<PropAccount["status"]>("Evaluation");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!accountToEdit) return;
+    setFirm(accountToEdit.firm ?? "");
+    setProduct(accountToEdit.product ?? "Futures");
+    setAccountType(accountToEdit.status === "Active" ? "Live" : "PropFirm");
+    setAccount(accountToEdit.account ?? "");
+    setStart(String(accountToEdit.startBalance ?? 0));
+    setBuyAmount(String(accountToEdit.buyAmount ?? 0));
+    setTarget(String(accountToEdit.target ?? 0));
+    setMaxDD(String(accountToEdit.maxDrawdown ?? 0));
+    setMaxDailyDD(String(accountToEdit.maxDailyDrawdown ?? 0));
+    setMinDays(String(accountToEdit.minDays ?? 0));
+    setStatus(accountToEdit.status ?? "Evaluation");
+  }, [accountToEdit]);
+
   // derive live mode from accountType
 
   const live = accountType === 'Live';
@@ -40,7 +56,7 @@ export function AddAccountForm({ onDone }: { onDone: () => void }) {
 
     setIsSubmitting(true);
     try {
-      await addAccount({
+      const payload = {
         firm: firm || 'Custom',
         product: product as PropAccount['product'],
         account: account || `${(firm||'CUSTOM').toUpperCase()}-${Math.round(startBalance / 1000)}K`,
@@ -53,8 +69,15 @@ export function AddAccountForm({ onDone }: { onDone: () => void }) {
         maxDailyDrawdown: live ? 0 : (Number(maxDailyDD) || 0),
         minDays: live ? 0 : (Number(minDays) || 5),
         status: live ? 'Active' : status,
-      });
-      toast.success("Account added successfully.");
+      };
+
+      if (accountToEdit?.id) {
+        await updateAccount(accountToEdit.id, payload as any);
+        toast.success("Account updated successfully.");
+      } else {
+        await addAccount(payload as any);
+        toast.success("Account added successfully.");
+      }
       onDone();
     } catch (error) {
       const message = getSupabaseErrorMessage(error, "Unable to add the account right now.");
@@ -119,7 +142,7 @@ export function AddAccountForm({ onDone }: { onDone: () => void }) {
       <div className="flex items-center justify-end gap-2 pt-1">
         <button type="button" onClick={onDone} className="text-[13px] text-white/55 hover:text-white px-3 py-2">Cancel</button>
         <button type="submit" disabled={isSubmitting} className="rounded-xl bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground hover:shadow-[0_0_30px_-4px_oklch(0.87_0.22_152/0.7)] transition disabled:cursor-not-allowed disabled:opacity-70">
-          {isSubmitting ? "Adding..." : "Add account"}
+          {isSubmitting ? (accountToEdit ? "Saving..." : "Adding...") : (accountToEdit ? "Save changes" : "Add account")}
         </button>
       </div>
     </form>

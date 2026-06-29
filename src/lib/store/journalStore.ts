@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { getSupabaseErrorMessage, supabase } from "@/lib/supabase";
 
 // Types
@@ -48,35 +48,132 @@ export type PropAccount = {
   buyAmount?: number;
 };
 
+function mapAccount(a: any): PropAccount {
+  return {
+    id: a.id,
+    firm: a.firm ?? "",
+    account: a.account ?? "",
+    balance: Number(a.balance ?? 0),
+    startBalance: Number(a.start_balance ?? a.startBalance ?? 0),
+    target: Number(a.target ?? 0),
+    maxDrawdown: Number(a.max_drawdown ?? a.maxDrawdown ?? 0),
+    currentDrawdown: Number(a.current_drawdown ?? a.currentDrawdown ?? 0),
+    tradingDays: a.trading_days ?? a.tradingDays ?? 0,
+    minDays: a.min_days ?? a.minDays ?? 0,
+    product: a.product ?? a.product_type ?? "Other",
+    buyAmount: Number(a.buy_amount ?? a.buyAmount ?? 0),
+    status: a.status,
+    createdAt: a.created_at,
+  } as PropAccount;
+}
+
+function mapTrade(t: any): Trade {
+  return {
+    id: t.id,
+    date: t.date,
+    symbol: t.symbol,
+    direction: t.direction,
+    setup: t.setup,
+    rr: Number(t.rr ?? 0),
+    pnl: Number(t.pnl ?? 0),
+    session: t.session,
+    emotion: t.emotion,
+    mistakes: t.mistakes ?? [],
+    accountId: t.account_id ?? t.accountId ?? null,
+    notes: t.notes,
+    attachments: t.attachments ?? [],
+    createdAt: t.created_at,
+  } as Trade;
+}
+
+function buildAccountPayload(a: Record<string, any>) {
+  const payload: Record<string, any> = {
+    firm: a.firm ?? "Custom",
+    account: a.account ?? "",
+    balance: a.balance ?? 0,
+    status: a.status ?? "Evaluation",
+  };
+
+  const optionalColumns = [
+    ["product", a.product ?? "Other"],
+    ["start_balance", a.startBalance ?? a.start_balance ?? 0],
+    ["target", a.target ?? 0],
+    ["buy_amount", a.buyAmount ?? a.buy_amount ?? 0],
+    ["max_drawdown", a.maxDrawdown ?? a.max_drawdown ?? 0],
+    ["current_drawdown", a.currentDrawdown ?? a.current_drawdown ?? 0],
+    ["daily_drawdown", a.dailyDrawdown ?? a.daily_drawdown ?? 0],
+    ["max_daily_drawdown", a.maxDailyDrawdown ?? a.max_daily_drawdown ?? 0],
+    ["trading_days", a.tradingDays ?? a.trading_days ?? 0],
+    ["min_days", a.minDays ?? a.min_days ?? 0],
+  ] as const;
+
+  for (const [key, value] of optionalColumns) {
+    if (value !== undefined && value !== null) payload[key] = value;
+  }
+
+  return payload;
+}
+
+async function persistAccountMutation(method: "insert" | "update", payload: Record<string, any>, id?: string) {
+  const run = async (row: Record<string, any>) => {
+    const query = method === "insert"
+      ? supabase.from("accounts").insert([row])
+      : supabase.from("accounts").update(row).eq("id", id as string);
+
+    const { data, error } = await query;
+    if (!error) return data;
+
+    const detail = (error as any)?.message ?? "";
+    const missingColumnMatch = detail.match(/column\s+"?([a-z0-9_]+)"?\s+does not exist/i);
+    if (missingColumnMatch) {
+      const missingColumn = missingColumnMatch[1];
+      if (missingColumn in row) {
+        delete row[missingColumn];
+        return run(row);
+      }
+    }
+
+    throw new Error(getSupabaseErrorMessage(error, method === "insert" ? "Unable to add the account." : "Unable to update the account."));
+  };
+
+  return run(payload);
+}
+
 // Simple reactive hooks that fetch from Supabase on mount. These are minimal
 // and can be extended to use real-time subscriptions.
 export function useTrades() {
   const [data, setData] = useState<Trade[]>([]);
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      const { data: trades } = await supabase.from("trades").select("*").order("date", { ascending: false });
+    const loadTrades = async () => {
+      const { data: trades, error } = await supabase.from("trades").select("*").order("date", { ascending: false });
       if (!mounted) return;
-      const mapped = (trades as any[] ?? []).map((t) => ({
-        id: t.id,
-        date: t.date,
-        symbol: t.symbol,
-        direction: t.direction,
-        setup: t.setup,
-        rr: Number(t.rr ?? 0),
-        pnl: Number(t.pnl ?? 0),
-        session: t.session,
-        emotion: t.emotion,
-        mistakes: t.mistakes ?? [],
-        accountId: t.account_id ?? t.accountId ?? null,
-        notes: t.notes,
-        attachments: t.attachments ?? [],
-        createdAt: t.created_at,
-      } as Trade));
-      setData(mapped);
-    })();
+      if (error) {
+        console.error("Failed to load trades", error);
+        setData([]);
+        return;
+      }
+      setData((trades as any[] ?? []).map(mapTrade));
+    };
+
+    loadTrades();
+
+    const channel = supabase.channel("trades-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "trades" }, (payload) => {
+        if (!mounted) return;
+        if (payload.eventType === "INSERT") {
+          setData((prev) => [mapTrade(payload.new), ...prev.filter((item) => item.id !== payload.new.id)]);
+        } else if (payload.eventType === "UPDATE") {
+          setData((prev) => prev.map((item) => item.id === payload.new.id ? mapTrade(payload.new) : item));
+        } else if (payload.eventType === "DELETE") {
+          setData((prev) => prev.filter((item) => item.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
     return () => {
       mounted = false;
+      supabase.removeChannel(channel);
     };
   }, []);
   return data;
@@ -171,29 +268,37 @@ export function useAccounts() {
   const [data, setData] = useState<PropAccount[]>([]);
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      const { data: accounts } = await supabase.from("accounts").select("*");
+    const loadAccounts = async () => {
+      const { data: accounts, error } = await supabase.from("accounts").select("*").order("created_at", { ascending: true });
       if (!mounted) return;
-      const mapped = (accounts as any[] ?? []).map((a) => ({
-        id: a.id,
-        firm: a.firm,
-        account: a.account,
-        balance: Number(a.balance ?? 0),
-        startBalance: Number(a.start_balance ?? a.startBalance ?? 0),
-        target: Number(a.target ?? 0),
-        maxDrawdown: Number(a.max_drawdown ?? a.maxDrawdown ?? 0),
-        currentDrawdown: Number(a.current_drawdown ?? a.currentDrawdown ?? 0),
-        tradingDays: a.trading_days ?? a.tradingDays ?? 0,
-        minDays: a.min_days ?? a.minDays ?? 0,
-        product: a.product ?? a.product_type ?? 'Other',
-        buyAmount: Number(a.buy_amount ?? a.buyAmount ?? 0),
-        status: a.status,
-        createdAt: a.created_at,
-      } as PropAccount));
-      setData(mapped);
-    })();
+      if (error) {
+        console.error("Failed to load accounts", error);
+        setData([]);
+        return;
+      }
+      setData((accounts as any[] ?? []).map(mapAccount));
+    };
+
+    loadAccounts();
+
+    const channel = supabase.channel("accounts-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "accounts" }, (payload) => {
+        if (!mounted) return;
+        if (payload.eventType === "INSERT") {
+          const nextAccount = mapAccount(payload.new);
+          setData((prev) => prev.some((item) => item.id === nextAccount.id) ? prev.map((item) => item.id === nextAccount.id ? nextAccount : item) : [...prev, nextAccount]);
+        } else if (payload.eventType === "UPDATE") {
+          const nextAccount = mapAccount(payload.new);
+          setData((prev) => prev.map((item) => item.id === nextAccount.id ? nextAccount : item));
+        } else if (payload.eventType === "DELETE") {
+          setData((prev) => prev.filter((item) => item.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
     return () => {
       mounted = false;
+      supabase.removeChannel(channel);
     };
   }, []);
   return data;
@@ -221,48 +326,17 @@ export async function addTrade(t: Omit<Trade, "id">) {
 }
 
 export async function addAccount(a: Omit<PropAccount, "id">) {
-  const payload: any = {
-    firm: a.firm ?? "Custom",
-    account: a.account,
-    balance: a.balance ?? 0,
-    status: a.status,
-  };
+  return persistAccountMutation("insert", buildAccountPayload(a as any));
+}
 
-  const optionalColumns = [
-    ["product", a.product ?? "Other"],
-    ["start_balance", (a as any).startBalance ?? 0],
-    ["target", (a as any).target ?? 0],
-    ["buy_amount", (a as any).buyAmount ?? 0],
-    ["max_drawdown", (a as any).maxDrawdown ?? 0],
-    ["current_drawdown", (a as any).currentDrawdown ?? 0],
-    ["daily_drawdown", (a as any).dailyDrawdown ?? 0],
-    ["max_daily_drawdown", (a as any).maxDailyDrawdown ?? 0],
-    ["trading_days", (a as any).tradingDays ?? 0],
-    ["min_days", (a as any).minDays ?? 0],
-  ] as const;
+export async function updateAccount(id: string, a: Partial<PropAccount> & { startBalance?: number; maxDrawdown?: number; maxDailyDrawdown?: number; tradingDays?: number; minDays?: number; buyAmount?: number; currentDrawdown?: number; dailyDrawdown?: number; }) {
+  return persistAccountMutation("update", buildAccountPayload(a as any), id);
+}
 
-  for (const [key, value] of optionalColumns) {
-    if (value !== undefined && value !== null) payload[key] = value;
-  }
-
-  const insertWithFallback = async (row: Record<string, unknown>) => {
-    const { data, error } = await supabase.from("accounts").insert([row]);
-    if (!error) return data;
-
-    const detail = (error as any)?.message ?? "";
-    const missingColumnMatch = detail.match(/column\s+"?([a-z0-9_]+)"?\s+does not exist/i);
-    if (missingColumnMatch) {
-      const missingColumn = missingColumnMatch[1];
-      if (missingColumn in row) {
-        delete row[missingColumn];
-        return insertWithFallback(row);
-      }
-    }
-
-    throw new Error(getSupabaseErrorMessage(error, "Unable to add the account."));
-  };
-
-  return insertWithFallback(payload);
+export async function deleteAccount(id: string) {
+  const { error } = await supabase.from("accounts").delete().eq("id", id);
+  if (error) throw new Error(getSupabaseErrorMessage(error, "Unable to delete the account."));
+  return true;
 }
 
 export async function addSetup(s: Omit<Setup, "id">) {
